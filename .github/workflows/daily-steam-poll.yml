@@ -1,0 +1,28 @@
+name: Daily Steam Poll
+
+on:
+  schedule:
+    - cron: '0 18 * * *'      # 毎日 UTC18:00（JST 03:00）に実行
+  workflow_dispatch:         # 手動トリガー用
+
+jobs:
+  call-steam-poll:
+    name: Invoke steam_poll Edge Function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call steam_poll Edge Function
+        run: |
+          RESPONSE=$(curl -sS -w "\n%{http_code}" \
+            -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+          )
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          STATUS=$(echo "$RESPONSE" | tail -n1)
+          echo "HTTP status: $STATUS"
+          echo "Response body: $BODY"
+          if [ "$STATUS" -ge 400 ]; then
+            echo "❌ Edge Function call failed" >&2
+            exit 1
+          fi
